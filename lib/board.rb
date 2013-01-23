@@ -6,20 +6,73 @@
 # 4) No more than 50 lines per class
 # 5) Uniform access of instance variables
 
-class Board
-  attr_reader :rows
+require 'dimensions'
 
-  def self.build(rows, cols)
-    allocate.tap do |board|
-      board.set_rows(rows)
+class Row
+  include Enumerable
+
+  def initialize
+    @cells = []
+  end
+
+  attr_reader :cells
+
+  def add_cell(cell)
+    cells << cell
+  end
+end
+
+class Board
+  class BoardBuilder
+    def initialize(board, dimensions)
+      @board = board
+      @dimensions = dimensions
+    end
+
+    attr_reader :board, :dimensions
+
+    def call(&block)
+      dimensions.each_row do |row_index, column_count|
+        row = Row.new
+        board.add_row row
+        RowBuilder.new(row, row_index, column_count).call(&block)
+      end
     end
   end
-  
-  def set_rows(rows)
-    @rows = rows
+
+  attr_reader :rows
+
+  def self.build(dimensions, &block)
+    allocate.tap do |board|
+      BoardBuilder.new(board, dimensions).call(&block)
+    end
+  end
+
+  def rows
+    @rows ||= []
+  end
+
+  def add_row(row)
+    rows << row
   end
 
   def row_count
-    rows || 0
+    rows.length
+  end
+end
+
+class RowBuilder
+  def initialize(row, row_index, col_count)
+    @row = row
+    @row_index = row_index
+    @col_count = col_count
+  end
+
+  attr_reader :row, :row_index, :col_count
+
+  def call(&block)
+    col_count.times do |col_index|
+      row.add_cell block.call(row_index, col_index)
+    end
   end
 end
